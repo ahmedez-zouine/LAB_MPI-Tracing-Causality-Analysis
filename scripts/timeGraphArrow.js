@@ -102,20 +102,13 @@ for (var i = 0; i < arrows.length; i++) {
 	}
 }
 
-var entriesList = tgEntries.getList();
-var arrowsList  = tgArrows.getList();
+function getEntriesFunction(parameters) {
+	return tgEntries.getList();
+}
 
-var getEntriesFunction = new JavaAdapter(java.util.function.Function, {
-	apply: function(parameters) {
-		return entriesList;
-	}
-});
-
-var getArrowsFunction = new JavaAdapter(java.util.function.Function, {
-	apply: function(parameters) {
-		return arrowsList;
-	}
-});
+function getArrowsFunction(parameters) {
+	return tgArrows.getList();
+}
 
 provider = createScriptedTimeGraphProvider(analysis, getEntriesFunction, null, getArrowsFunction);
 if (provider != null) {
