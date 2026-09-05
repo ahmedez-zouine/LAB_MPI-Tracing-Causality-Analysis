@@ -15,5 +15,5 @@ while (iter.hasNext()) {
 	}
 	eventString += ")"
 
-	print(eventString); 
+	print(eventString);
 }
