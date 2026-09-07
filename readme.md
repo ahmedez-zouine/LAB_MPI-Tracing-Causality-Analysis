@@ -529,8 +529,6 @@ In addition to Trace Compass scripts, this repository provides standalone verifi
 │   ├── ctf_ring_metrics.py     # Binary CTF parser and metric calculator
 │   └── plot_ring_causality.py  # Standalone causality timeline generator
 ├── report/
-│   ├── main.tex                # Academic report (LaTeX, strictly 6 pages)
-│   ├── main.pdf                # Compiled publication PDF report
 │   └── figures/                # Execution screenshots & generated diagrams
 │       ├── mpi_ring_causality_timeline.png # Wait bars + causality arrows
 │       ├── mpi_ring_causality_timeline.tex # TikZ vector source for timeline
