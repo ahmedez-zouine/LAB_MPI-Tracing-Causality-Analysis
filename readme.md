@@ -504,12 +504,11 @@ In addition to Trace Compass scripts, this repository provides standalone verifi
   python3 tools/ctf_ring_metrics.py --plot
   ```
 
-- **`tools/plot_ring_causality.py`**: Generates the publication-grade ring topology diagram and the causality timeline (blocking waits + Lamport happened-before arrows) from the TikZ sources in `report/figures/`:
+- **`tools/plot_ring_causality.py`**: Generates the publication-grade causality timeline (blocking waits + Lamport happened-before arrows) from the TikZ source in `report/figures/mpi_ring_causality_timeline.tex`:
   ```bash
   python3 tools/plot_ring_causality.py
   ```
   **Generated Artifacts:**
-  - `report/figures/mpi_ring_topology.png` / `.pdf`: Ring topology with per-hop latencies
   - `report/figures/mpi_ring_causality_timeline.png` (300 DPI high-res): Wait bars and causality arrows
   - `report/figures/mpi_ring_causality_timeline.pdf`: Vector timeline diagram
 
@@ -528,14 +527,11 @@ In addition to Trace Compass scripts, this repository provides standalone verifi
 │   └── timeGraphArrow.js       # Step 5: Time Graph view with causality arrows
 ├── tools/                      # Standalone CTF analysis & visualizer
 │   ├── ctf_ring_metrics.py     # Binary CTF parser and metric calculator
-│   ├── plot_ring_topology.py   # TikZ compilation engine (topology & timeline)
-│   └── plot_ring_causality.py  # Standalone diagram generator
+│   └── plot_ring_causality.py  # Standalone causality timeline generator
 ├── report/
 │   ├── main.tex                # Academic report (LaTeX, strictly 6 pages)
 │   ├── main.pdf                # Compiled publication PDF report
 │   └── figures/                # Execution screenshots & generated diagrams
-│       ├── mpi_ring_topology.png           # Ring topology with hop latencies
-│       ├── mpi_ring_topology.tex           # TikZ vector source for topology
 │       ├── mpi_ring_causality_timeline.png # Wait bars + causality arrows
 │       ├── mpi_ring_causality_timeline.tex # TikZ vector source for timeline
 │       ├── mpi_ring_causality_timeline.pdf # Vector timeline diagram
