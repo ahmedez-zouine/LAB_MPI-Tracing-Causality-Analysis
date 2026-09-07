@@ -425,9 +425,6 @@ Reading the timestamps directly from the reconstructed trace gives the wait inte
 
 ### Ring Topology & Causality Timeline
 
-![Ring topology with measured hop latencies](./report/figures/mpi_ring_topology.png)
-*Figure 6: Token ring topology annotated with the measured per-hop latencies and the 119.0 µs cycle time.*
-
 ![Causality timeline with waits and message arrows](./report/figures/mpi_ring_causality_timeline.png)
 *Figure 7: Reconstructed causality timeline. Colored bars are blocking waits; dashed red arrows are the four messages (send → receive); the bracket on top is the 63.865 µs startup skew.*
 
