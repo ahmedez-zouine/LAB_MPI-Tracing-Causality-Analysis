@@ -5,6 +5,5 @@
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-*.pdf
 Thumbs.db
 .DS_Store
