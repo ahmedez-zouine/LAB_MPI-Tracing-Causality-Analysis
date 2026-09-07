@@ -410,28 +410,48 @@ if (provider != null) {
 
 ---
 
-## 4. Technical Issues & Solutions
+## 4. Measurements & Results
+
+Reading the timestamps directly from the reconstructed trace gives the wait interval of each MPI rank. Absolute timestamps are nanosecond clock readings within the second starting at 11:59:36 (so `162.783560` below means 162.783560 **ms** into that second); durations are in microseconds (µs).
+
+| MPI Rank | Thread ID | Wait Start | Wait End | Wait Duration | Role in the Ring |
+|----------|-----------|------------|----------|---------------|------------------|
+| **Rank 0** | 658453 | 11:59:36.162 783 560 | 11:59:36.162 891 305 | **107.745 µs** | Sends token, waits for full loop |
+| **Rank 1** | 658454 | 11:59:36.162 783 782 | 11:59:36.162 799 956 | **16.174 µs** | Receives from Rank 0 |
+| **Rank 2** | 658455 | 11:59:36.162 719 695 | 11:59:36.162 838 457 | **118.762 µs** | Posted its receive before Rank 0 started |
+| **Rank 3** | 658456 | 11:59:36.162 834 306 | 11:59:36.162 862 954 | **28.648 µs** | Receives from Rank 2, sends back to Rank 0 |
+
+*(Note: Durations are cross-verified via `tools/ctf_ring_metrics.py` against the raw CTF packet streams; visual ruler selections in Trace Compass GUI yield approx. 108.715 µs on Rank 2).*
+
+Three observations:
+
+1. **Startup skew (63.865 µs).** Rank 2 posted its first receive at 162.719695 ms, while Rank 0 started waiting (just after sending the token) at 162.783560 ms — a difference of **63.865 µs** (startup events span 117.370 µs from Rank 2 to Rank 3). The OS simply scheduled Rank 2 first, and it sat blocked in its receive call while the token traveled through Ranks 0 and 1. This is why Rank 2 shows the longest total wait (118.762 µs) despite doing no extra work.
+
+2. **First hop transfer (27.652 µs).** Rank 0 initiated transmission at 162.772304 ms (`send_entry`) and Rank 1 completed reception at 162.799956 ms (`recv_exit`), yielding a transfer latency of **27.652 µs**, during which Rank 1 was blocked waiting for 16.174 µs.
+
+3. **Total ring latency (119.001 µs).** Rank 0 sent the token at 162.772304 ms and received it back at 162.891305 ms, so the full round trip was `T_ring = t_recv_exit(0) - t_send_entry(0) = 119.001 µs` (or 107.745 µs measured strictly across Rank 0's blocking wait interval). This covers all four message transfers plus scheduling/turnaround processing at each rank — and it is smaller than Rank 2's wait because Rank 2 was already waiting long before the ring started.
+
+---
+
+## 5. Technical Issues & Solutions
 
 As requested in the lab instructions, this section documents the problems encountered and how they were solved.
 
-### Issue 1: Nashorn Script Engine Missing in Modern Java (Java 15+)
-- **Problem:** Step 5 of the original lab specifies switching to the Nashorn engine (`JavaScript (Nashorn)`). When executed in Trace Compass on Java 21, it failed with:
+### Issue 1: JavaScript Engine — Rhino vs. Nashorn
+- **Problem:** The arrow script (Step 5) initially failed with:
   ```text
-  Could not setup script engine: Unable to load Nashorn Script Engine
+  org.eclipse.ease.ScriptExecutionException: SyntaxError: Cannot convert * to java.lang.Integer
   ```
-  Nashorn was deprecated and permanently removed from standard OpenJDK starting in Java 15 (JEP 372).
-- **Diagnosis:** Modern versions of Eclipse Trace Compass running on Java 17+ or Java 21 do not have Nashorn built-in.
-- **Solution:** 
-  1. Downloaded the standalone OpenJDK Nashorn JAR (`nashorn-core-15.4.jar`) and required ASM dependencies.
-  2. Configured the Trace Compass JVM classpath via `tracecompass.ini` so Eclipse EASE could successfully load the Nashorn engine.
+- **Diagnosis:** EASE ships two JavaScript engines. The older Mozilla Rhino coerces JavaScript numbers into boxed Java `Integer` values when it resolves an overload for a Java method, and 64-bit timestamps (as well as the `'*'` wildcard in the provider map) do not survive that conversion. Oracle Nashorn uses `invokedynamic` and performs proper overload resolution with native `long` values.
+- **Solution:** Switched the engine in **Run Configurations → Scripting → Engine** from `JavaScript (Rhino)` to `JavaScript (Nashorn)`. The conversion error disappeared.
 
-### Issue 2: Engine Incompatibility with `JavaAdapter` Callbacks
-- **Problem:** The tutorial script used Rhino-specific syntax:
+### Issue 2: Rhino-Specific `JavaAdapter` Callbacks
+- **Problem:** The older tutorial script used Rhino-only syntax:
   ```javascript
   new JavaAdapter(Function, { ... })
   ```
-  Under Nashorn, `JavaAdapter` throws errors when passing callbacks to `createScriptedTimeGraphProvider`.
-- **Diagnosis:** In modern Java runtimes, Java functional interfaces (SAM interfaces) can be implemented directly using standard JavaScript functions without requiring `JavaAdapter`.
+  This throws evaluation errors under Nashorn.
+- **Diagnosis:** In modern Java runtimes, Java functional interfaces (SAM interfaces) can be implemented directly with standard JavaScript functions, without `JavaAdapter`.
 - **Solution:** Refactored `timeGraphArrow.js` to define standard JavaScript functions:
   ```javascript
   function getEntriesFunction(parameters) {
@@ -441,15 +461,46 @@ As requested in the lab instructions, this section documents the problems encoun
       return tgArrows.getList();
   }
   ```
-  This is cleaner, portable, and runs smoothly under Nashorn.
+  Nashorn passes these plain functions straight to the Java functional interfaces used by Trace Compass. This is cleaner, portable, and engine-independent.
 
 ### Issue 3: Arrow Resolution by Entry ID
-- **Problem:** `createArrow(srcId, dstId, ...)` requires internal entry IDs (integers returned by `entry.getId()`), rather than string worker ranks ("0", "1", ...).
-- **Solution:** Maintained an explicit mapping dictionary (`mpiWorkerToId[wid] = entry.getId()`) to guarantee arrows correctly connect the sender and receiver rows.
+- **Problem:** `createArrow(srcId, dstId, ...)` requires internal entry IDs (integers returned by `entry.getId()`), rather than string worker ranks ("0", "1", ...). Entries (and their IDs) also only exist *after* all events are processed, so arrows cannot be created during event iteration.
+- **Solution:** Built the time graph entries first, kept an explicit mapping (`mpiWorkerToId[wid] = entry.getId()`), and only then created the arrows in a final loop once the IDs were available.
+
+### Issue 4: Missing `closeHistory()` Froze the View
+- **Problem:** An early version of `stateSystem.js` did not call `ss.closeHistory()`, and Trace Compass froze when opening the timeline view.
+- **Diagnosis:** The State History Tree buffers intervals until their end time is known, and the tree needs a final end time to seal its last nodes and write them out. Without closure, the final intervals stay open and the view cannot be rendered against the end of the trace.
+- **Solution:** Added the closure after the event loop:
+  ```javascript
+  ss.closeHistory(event.getTimestamp().toNanos());
+  ```
 
 ---
 
-## 5. Repository Structure
+## 6. Verification Tools & Causality Visualizer
+
+In addition to Trace Compass scripts, this repository provides standalone verification and plotting tools that parse the raw binary CTF packets directly:
+
+- **`tools/ctf_ring_metrics.py`**: Zero-dependency binary CTF reader that computes all exact metrics, timestamps, wait durations, and hop latencies.
+  ```bash
+  # Print complete metrics table
+  python3 tools/ctf_ring_metrics.py
+
+  # Print metrics AND generate high-resolution diagram
+  python3 tools/ctf_ring_metrics.py --plot
+  ```
+
+- **`tools/plot_ring_causality.py`**: Generates publication-grade timeline & Lamport happened-before causality diagrams:
+  ```bash
+  python3 tools/plot_ring_causality.py
+  ```
+  **Generated Artifacts:**
+  - `report/figures/mpi_ring_causality_timeline.png` (300 DPI high-res)
+  - `report/figures/mpi_ring_causality_timeline.pdf` (vector graphic)
+
+---
+
+## 7. Repository Structure
 
 ```text
 .
@@ -460,8 +511,15 @@ As requested in the lab instructions, this section documents the problems encoun
 │   ├── stateSystem.js          # Step 3: Populate State System history tree
 │   ├── timeLine.js             # Step 4: Time Graph view for worker states
 │   └── timeGraphArrow.js       # Step 5: Time Graph view with causality arrows
+├── tools/                      # Standalone CTF analysis & visualizer
+│   ├── ctf_ring_metrics.py     # Binary CTF parser and metric calculator
+│   └── plot_ring_causality.py  # Publication-quality causality timeline plotter
 ├── report/
-│   └── figures/                # High-resolution execution screenshots
+│   ├── main.tex                # Academic report (LaTeX, 6 pages)
+│   ├── main.pdf                # Compiled PDF report
+│   └── figures/                # Execution screenshots & generated diagrams
+│       ├── mpi_ring_causality_timeline.png  # High-res timeline diagram
+│       ├── mpi_ring_causality_timeline.pdf  # Vector timeline diagram
 │       ├── overview_tracing.png
 │       ├── readTrace_screenshot.png
 │       ├── readEvents_screenshot.png
@@ -474,7 +532,7 @@ As requested in the lab instructions, this section documents the problems encoun
 
 ---
 
-## 6. Conclusion
+## 8. Conclusion
 
 This lab demonstrates key concepts in execution tracing and performance analysis:
 - **Trace Parsing:** Extracting high-level program semantics from low-level UST events (LTTng [1]).
@@ -484,7 +542,7 @@ This lab demonstrates key concepts in execution tracing and performance analysis
 
 ---
 
-## 7. References
+## 9. References
 
 [1] M. Desfossez, J. Boucher, and M. R. Dagenais, “LTTng: High-performance tracing engine for Linux,” in *Proceedings of the Linux Symposium*, Ottawa, Canada, 2012, pp. 63–74.  
 [2] A. Montplaisir-Gagné, M. Eichelberger, and M. R. Dagenais, “State history tree: An index for efficient state reconstruction in execution traces,” *IEEE Transactions on Parallel and Distributed Systems*, vol. 24, no. 12, pp. 2404–2417, 2013.  
