@@ -9,3 +9,4 @@ Thumbs.db
 .DS_Store
 *.pdf
 report/main.tex
+report/figures/mpi_ring_causality_timeline.tex

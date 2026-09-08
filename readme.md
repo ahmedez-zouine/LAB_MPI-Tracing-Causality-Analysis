@@ -530,7 +530,6 @@ In addition to Trace Compass scripts, this repository provides standalone verifi
 ├── report/
 │   └── figures/                # Execution screenshots & generated diagrams
 │       ├── mpi_ring_causality_timeline.png # Wait bars + causality arrows
-│       ├── mpi_ring_causality_timeline.tex # TikZ vector source for timeline
 │       ├── mpi_ring_causality_timeline.pdf # Vector timeline diagram
 │       ├── orcid_icon.pdf                  # Official vector ORCID logo
 │       ├── orcid_icon.png                  # Official high-res ORCID logo
