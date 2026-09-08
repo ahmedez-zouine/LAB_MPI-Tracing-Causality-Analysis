@@ -1,7 +1,6 @@
 # Trace Compass Lab 204: Scripted Analysis for Custom Instrumentation
 ### MPI Ring Communication & Causality Analysis
 
-**Lab Reference:** [Tracevizlab 204 - Scripted Analysis for Custom Instrumentation](https://github.com/dorsal-lab/Tracevizlab/tree/master/labs/204-scripted-analysis-for-custom-instrumentation)  
 **Tool:** Eclipse Trace Compass (Eclipse EASE Scripting) [5]  
 **Trace:** MPI Ring Communication Trace (`traces/mpi_ring/`)  
 
@@ -565,5 +564,4 @@ This lab demonstrates key concepts in execution tracing and performance analysis
 [4] L. Lamport, “Time, clocks, and the ordering of events in a distributed system,” *Communications of the ACM*, vol. 21, no. 7, pp. 558–565, 1978.  
 [5] M. Eichelberger and M. R. Dagenais, “Trace Compass: An extensible system trace analysis and visualization tool,” in *EclipseCon North America*, Reston, VA, 2012.  
 [6] T. Hoefler, T. Schneider, and A. Lumsdaine, “LogGOPSim: Simulating large-scale MPI applications with non-blocking communications,” *Simulation Modelling Practice and Theory*, vol. 18, no. 8, pp. 1109–1122, 2010.  
-[7] DORSAL Lab, “Lab 204: Scripted analysis for custom instrumentation,” in *Tracevizlab*, Polytechnique Montréal, 2024. [Online]. Available: https://github.com/dorsal-lab/Tracevizlab
-
+[7] DORSAL Lab, “Lab 204: Scripted analysis for custom instrumentation,” in *Tracevizlab*, Polytechnique Montréal, 2024.
