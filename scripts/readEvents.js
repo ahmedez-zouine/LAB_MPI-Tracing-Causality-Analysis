@@ -1,16 +1,5 @@
 /*
  * readEvents.js — Map Thread IDs to MPI Worker Ranks
- *
- * When ring:init fires, we capture the link between the OS thread ID
- * (context._vtid) and the logical MPI rank (worker_id).
- * Then for every other event, we resolve which worker it belongs to
- * and print a human-readable description of each action.
- *
- * Expected output:
- *   Init           -> tid: 658453, worker_id: 0
- *   Init           -> tid: 658454, worker_id: 1
- *   Entering Send  -> tid: 658453, worker_id: 0, dest: 1
- *   ...
  */
 
 loadModule("/TraceCompass/Trace")
